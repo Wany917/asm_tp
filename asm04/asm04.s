@@ -28,9 +28,18 @@ _dernier:
     jmp _resultat            
 
 _verifier:
+    ; Compare avec le début du buffer
+    cmp rdi, input
+    jb _error
     ; Si ce n'est pas un chiffre, recule d'un caractère et recommence
     dec rdi                       
     jmp _dernier
+
+_error:
+    ; Retourne le code d'erreur 2 pour une entrée invalide
+    mov rax, 60
+    mov rdi, 2
+    syscall
 
 _resultat:
     ; Convertit le caractère ASCII en chiffre
