@@ -1,6 +1,6 @@
 section .bss
-    number resb 10      ; Réserve un espace pour un nombre de 10 caractères
-    binary resb 33      ; Réserve un espace pour le binaire (32 bits + 1 caractère nul)
+    number resb 10
+    binary resb 33
 
 section .text
     global _start
