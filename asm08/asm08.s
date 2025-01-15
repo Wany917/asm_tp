@@ -1,57 +1,105 @@
-section .bss
-    number resb 10
-    binary resb 33
-
 section .text
-    global _start
+global _start
 
 _start:
-    ; Lire l'entrée de l'utilisateur
-    mov eax, 3
-    mov ebx, 0
-    mov ecx, number
-    mov edx, 10
-    int 0x80
+    pop rax                 
+    cmp rax, 2
+    jne error_param
+    
+    pop rax             
+    pop rdi             
+    call str_to_int
+    
+    mov rdi, rax          ; N
+    dec rdi               ; N-1 (on veut les nombres inférieurs)
+    call calculate_sum
+    
+    mov rdi, rax
+    call display_number
+    
+    mov rax, 1          
+    mov rdi, 1
+    mov rsi, newline
+    mov rdx, 1
+    syscall
+    
+    mov rax, 60         
+    xor rdi, rdi
+    syscall
 
-    ; Convertir la chaîne de caractères en nombre décimal
-    mov ecx, number
-    xor eax, eax
+error_param:
+    mov rax, 60
+    mov rdi, 1
+    syscall
 
-convert_decimal:
-    mov dl, byte [ecx]
-    sub dl, '0'         ; Convertir le caractère ASCII en chiffre
-    cmp dl, 10
-    jae done_conversion
-    imul eax, 10
-    add eax, edx
-    inc ecx
-    jmp convert_decimal
+str_to_int:
+    xor rax, rax
+.next:
+    movzx rcx, byte [rdi]
+    test rcx, rcx
+    jz .done
+    sub rcx, '0'
+    imul rax, 10
+    add rax, rcx
+    inc rdi
+    jmp .next
+.done:
+    ret
 
-done_conversion:
-    ; Préparer la conversion en binaire
-    mov ecx, 32
-    lea edi, [binary+31]
+calculate_sum:
+    cmp rdi, 0            ; si N ≤ 0
+    jle .zero
+    mov rcx, rdi          ; compteur = N
+    mov rax, rdi          ; premier nombre
+.loop:
+    dec rcx               ; prochain nombre
+    jz .done             ; si on arrive à 0
+    add rax, rcx          ; ajouter à la somme
+    jmp .loop
+.zero:
+    xor rax, rax         ; retourner 0
+.done:
+    ret
 
-convert_binary:
-    xor edx, edx
-    mov ebx, 2
-    div ebx             ; Diviser eax par 2
-    add dl, '0'         ; Convertir le reste en caractère ASCII
-    dec edi
-    mov [edi], dl
-    dec ecx
-    test eax, eax
-    jnz convert_binary
+display_number:
+    mov rax, rdi
+    mov rsi, buffer
+    add rsi, 19
+    mov byte [rsi], 0
+    
+    test rax, rax
+    jnz .convert
+    mov byte [buffer], '0'
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, buffer
+    mov rdx, 1
+    syscall
+    ret
+    
+.convert:
+    dec rsi
+    mov rcx, 10
+    
+.next_digit:
+    xor rdx, rdx
+    div rcx
+    add dl, '0'
+    mov [rsi], dl
+    test rax, rax
+    jnz .next_digit
+    
+    mov rax, 1
+    mov rdi, 1
+    mov rdx, buffer
+    add rdx, 20
+    sub rdx, rsi
+    dec rdx
+    syscall
+    ret
 
-    ; Afficher le résultat binaire
-    mov eax, 4
-    mov ebx, 1
-    mov ecx, edi
-    lea edx, [binary+32]
-    sub edx, edi
-    int 0x80
+section .data
+    newline db 10
 
-    ; Terminer le programme
-    mov eax, 1
-    mov rdi, 0
-    int 0x80
+section .bss
+    buffer resb 20
