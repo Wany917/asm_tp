@@ -1,100 +1,149 @@
+; asm08.s
+; ---------------------------------------
+; Calcule la somme des entiers 1..(N-1).
+; Usage:
+;   ./asm08 5  => 10
+;   ./asm08 10 => 45
+;   ./asm08 1  => 0
+; ---------------------------------------
+
 section .text
 global _start
 
+; -------------------------------
+; Point d'entrée
+; -------------------------------
 _start:
-    pop rax                 
-    cmp rax, 2
+    ; Récupère argc dans rax
+    mov rax, [rsp]        ; rax = argc
+    cmp rax, 2            ; 1 argument utilisateur => argc=2
     jne error_param
-    
-    pop rax             
-    pop rdi             
-    call str_to_int
-    
-    mov rdi, rax          ; N
-    dec rdi               ; N-1 (on veut les nombres inférieurs)
+
+    ; Récupère argv[1] = [rsp + 16]
+    mov rsi, [rsp + 16]
+
+    ; Convertit argv[1] en entier => rax
+    mov rdi, rsi
+    call str_to_int       
+    ; On place N dans rdi
+    mov rdi, rax
+
+    ; Calcule sum(1..(N-1)) => rax
     call calculate_sum
-    
+
+    ; Affiche le résultat (stocké dans rax)
     mov rdi, rax
     call display_number
-    
-    mov rax, 1          
-    mov rdi, 1
-    mov rsi, newline
-    mov rdx, 1
-    syscall
-    
-    mov rax, 60         
+
+    ; exit(0)
+    mov rax, 60
     xor rdi, rdi
     syscall
 
+; -------------------------------
+; error_param:
+;   sort du programme avec code 1
+; -------------------------------
 error_param:
     mov rax, 60
     mov rdi, 1
     syscall
 
+; -------------------------------
+; str_to_int:
+;   Convertit la chaîne pointée par rdi
+;   en nombre entier (base 10).
+;   Résultat dans rax.
+; -------------------------------
 str_to_int:
     xor rax, rax
-.next:
-    movzx rcx, byte [rdi]
+.convert_loop:
+    movzx rcx, byte [rdi]   ; lit le caractère
     test rcx, rcx
-    jz .done
-    sub rcx, '0'
-    imul rax, 10
+    jz .done                ; fin de chaîne => on sort
+    sub rcx, '0'            ; convertit ASCII -> 0..9
+    imul rax, rax, 10
     add rax, rcx
     inc rdi
-    jmp .next
+    jmp .convert_loop
 .done:
     ret
 
+; -------------------------------
+; calculate_sum:
+;   rdi = N
+;   Calcule la somme 1 + 2 + ... + (N - 1).
+;   Résultat dans rax.
+; -------------------------------
 calculate_sum:
-    cmp rdi, 0            ; si N ≤ 0
-    jle .zero
-    mov rcx, rdi          ; compteur = N
-    mov rax, rdi          ; premier nombre
-.loop:
-    dec rcx               ; prochain nombre
-    jz .done             ; si on arrive à 0
-    add rax, rcx          ; ajouter à la somme
-    jmp .loop
-.zero:
-    xor rax, rax         ; retourner 0
-.done:
+    xor rax, rax      ; rax = 0 (somme)
+    mov rcx, 1        ; rcx = 1 (compteur)
+
+.sum_loop:
+    cmp rcx, rdi      ; tant que rcx < N
+    jge .sum_done
+    add rax, rcx
+    inc rcx
+    jmp .sum_loop
+
+.sum_done:
     ret
 
+; -------------------------------
+; display_number:
+;   Affiche rdi en décimal,
+;   suivi d’un saut de ligne.
+; -------------------------------
 display_number:
-    mov rax, rdi
+    mov rax, rdi          ; nombre à afficher dans rax
+
+    ; On prépare un buffer temporaire
     mov rsi, buffer
     add rsi, 19
-    mov byte [rsi], 0
-    
+    mov byte [rsi], 0     ; terminaison de chaîne
+
+    ; Cas où rax == 0 => afficher "0"
     test rax, rax
-    jnz .convert
+    jnz .convert_digits
+
     mov byte [buffer], '0'
-    mov rax, 1
-    mov rdi, 1
+    mov rax, 1            ; syscall write
+    mov rdi, 1            ; fd = stdout
     mov rsi, buffer
-    mov rdx, 1
+    mov rdx, 1            ; longueur = 1
     syscall
-    ret
-    
-.convert:
+    jmp .print_newline
+
+.convert_digits:
     dec rsi
     mov rcx, 10
-    
-.next_digit:
+
+.digit_loop:
     xor rdx, rdx
-    div rcx
+    div rcx               ; rax / 10 => quotient dans rax, reste dans rdx
     add dl, '0'
     mov [rsi], dl
+    dec rsi
     test rax, rax
-    jnz .next_digit
-    
+    jnz .digit_loop
+
+    ; rsi pointe sur le 1er caractère
+    inc rsi
+
+    ; Affiche la chaîne => write(1, rsi, length)
     mov rax, 1
     mov rdi, 1
     mov rdx, buffer
     add rdx, 20
     sub rdx, rsi
-    dec rdx
+    syscall
+
+.print_newline:
+    ; Saut de ligne
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, newline
+    mov rdx, 1
     syscall
     ret
 
