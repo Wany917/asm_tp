@@ -40,7 +40,7 @@ error_input:
     syscall
     
     mov rax, 60
-    mov rdi, 1
+    mov rdi, 2
     syscall
 
 str_to_int:
